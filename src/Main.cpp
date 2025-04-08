@@ -15,7 +15,6 @@
 #define BLYNK_TEMPLATE_ID           "TMPL2z_jxo6v0"
 #define BLYNK_TEMPLATE_NAME         "Artesiano"
 #define BLYNK_FIRMWARE_VERSION      "0.1.0"
-
 //#define BLYNK_PRINT Serial
 //#define APP_DEBUG
 #define USE_ESP32_DEV_MODULE
@@ -26,17 +25,15 @@
 #include "LoRa_E220.h"
 
 // ------------------------------------- LORA -----------------------------------------
+// pinos e conexões dos módulos
+#define PIN_RX 16   // ESP32 Serial2 RX -> EBYTE TX
+#define PIN_TX 17   // ESP32 Serial2 TX -> EBYTE RX
+#define PIN_AX 18   // ESP32 GPIO 18    -> EBYTE AUX, ou Pull-UP para o modo transparente de comunicação
+#define PIN_M0 21   // ESP32 GPIO 21    -> EBYTE M0,  ou EBYTE M0 no GND para o modo transparente de comunicação
+#define PIN_M1 19   // ESP32 GPIO 19    -> EBYTE M1,  ou EBYTE M1 no GND para 0 modo transparente de comunicação	
 
-#define PIN_RX 16   // Serial2 RX (connect this to the EBYTE Tx pin)
-#define PIN_TX 17   // Serial2 TX pin (connect this to the EBYTE Rx pin)
-#define PIN_AX 18   // D15 on the board (possibly called pin 21)
-#define PIN_M0 21   // D4 on the board (possibly pin 4)
-#define PIN_M1 19   // D2 on the board (possibly called pin 22)
-
-#define ENABLE_RSSI true
+//#define ENABLE_RSSI true         // habilitar em caso de uso, mas tem que tratar a string receiveMessageRSSI()
 LoRa_E220 e220ttl(&Serial2, PIN_AX, PIN_M0, PIN_M1); //  RX/TX, AUX, M0, M1
-
-unsigned long Last; // loop de atualizacoes
 
 int currentSec;
 int currentMin;
@@ -166,7 +163,7 @@ void NTPserverTime(){          // Horário recebido da internet
       Serial.println(RTC_Time);
       Blynk.virtualWrite(V1, RTC_Time);                             // envia ao Blynk a informação de data, hora e minuto do RTC
     
-      int temp=((temprature_sens_read() - 32) / 1.8)-37;             // -7 Viamão,   -31 Restinga Seca 
+      int temp=((temprature_sens_read() - 32) / 1.8)-41;             // -7 Viamão,   -31 Restinga Seca 
       Serial.print("Temperatura: ");
       Serial.print(temp);
       Serial.println(" C");
