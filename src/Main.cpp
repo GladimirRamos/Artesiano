@@ -23,6 +23,20 @@
 #include "time.h" 
 #include "BlynkEdgent.h"
 #include "uptime_formatter.h"
+#include "LoRa_E220.h"
+
+// ------------------------------------- LORA -----------------------------------------
+
+#define PIN_RX 16   // Serial2 RX (connect this to the EBYTE Tx pin)
+#define PIN_TX 17   // Serial2 TX pin (connect this to the EBYTE Rx pin)
+#define PIN_AX 18   // D15 on the board (possibly called pin 21)
+#define PIN_M0 21   // D4 on the board (possibly pin 4)
+#define PIN_M1 19   // D2 on the board (possibly called pin 22)
+
+#define ENABLE_RSSI true
+LoRa_E220 e220ttl(&Serial2, PIN_AX, PIN_M0, PIN_M1); //  RX/TX, AUX, M0, M1
+
+unsigned long Last; // loop de atualizacoes
 
 int currentSec;
 int currentMin;
@@ -63,18 +77,6 @@ void PrintResetReason(void) {
   esp_reset_reason_t r = esp_reset_reason();
   Serial.printf("Reset reason:     %i - %s\r\n\r\n", r, resetReasonName(r));
 }
-
-
-// ------------------------------------- LORA -----------------------------------------
-
-#define PIN_RX 16   // Serial2 RX (connect this to the EBYTE Tx pin)
-#define PIN_TX 17   // Serial2 TX pin (connect this to the EBYTE Rx pin)
-#define PIN_M0 21   // D4 on the board (possibly pin 4)
-#define PIN_M1 22   // D2 on the board (possibly called pin 22)
-#define PIN_AX 18   // D15 on the board (possibly called pin 21)
-
-unsigned long Last; // loop de atualizacoes
-
 
 //-------------------------------------  NTP Server time ----------------------------------------------
 const char* ntpServer = "br.pool.ntp.org";      // "pool.ntp.org"; "a.st1.ntp.br";
@@ -202,9 +204,9 @@ void setup(){
  
   Serial.begin(115200);
   delay(100);
-  Serial2.begin(9600, SERIAL_8N1, 16, 17);
-  Serial.println("Porta Serial 2 pronta...");
-
+  Serial2.begin(9600, SERIAL_8N1, PIN_RX, PIN_TX);
+  e220ttl.begin();
+  Serial.println("Porta Serial 2 e Radio LORA iniciados...");
   delay(3000);
 
   configTime(gmtOffset_sec, daylightOffset_sec, ntpServer);   // inicia e busca as infos de data e hora (NTP)
@@ -230,26 +232,32 @@ void setup(){
 void loop(){
   BlynkEdgent.run(); 
 
-  /*
-  // if the transceiver serial is available, proces incoming data
-  // you can also use Transceiver.available()
-  if (Serial2.available()) {
-    Serial.println("Dados detectados na interface Serial 2: ");
-
-    //Blynk.virtualWrite(V4, MyData.Count); 
-    //Blynk.virtualWrite(V5, MyData.Bits); 
-    //Blynk.virtualWrite(V6, MyData.Volts); 
-    
-    Last = millis();
-
-  }
-  else {
-    // if the time checker is over some prescribed amount
-    // let the user know there is no incoming data
-    if ((millis() - Last) > 3000) {
-      Serial.println("Aguardando... ");
-      Last = millis();
+  	// se tiver algo na serial 2
+  if (e220ttl.available()>1) {
+      Serial.println("Mensagem recebida:");
+     #ifdef ENABLE_RSSI
+            ResponseContainer rc = e220ttl.receiveMessageRSSI();
+      #else
+            ResponseContainer rc = e220ttl.receiveMessage();
+      #endif
+      // print error
+      if (rc.status.code!=1){
+          Serial.println(rc.status.getResponseDescription());
+          } else {
+            // Print das mensagens recebidas
+            Serial.println(rc.status.getResponseDescription());
+            Serial.println(rc.data);
+            Blynk.virtualWrite(V4, rc.status.getResponseDescription()); 
+            Blynk.virtualWrite(V5, rc.data); 
+            #ifdef ENABLE_RSSI
+            Serial.print("RSSI: "); Serial.println(rc.rssi, DEC);
+            Blynk.virtualWrite(V6, rc.rssi); 
+            #endif
+           }
     }
-  }
-  */
+
+ if (Serial.available()) {
+      String input = Serial.readString();
+      e220ttl.sendMessage(input);
+    }
 }
